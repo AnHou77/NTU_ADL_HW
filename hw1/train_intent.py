@@ -1,3 +1,4 @@
+import os
 import json
 import pickle
 from argparse import ArgumentParser, Namespace
@@ -5,10 +6,15 @@ from pathlib import Path
 from typing import Dict
 
 import torch
-from tqdm import trange
+import torch.nn as nn
+import torch.optim as optim
+from tqdm import tqdm
 
 from dataset import SeqClsDataset
 from utils import Vocab
+
+from torch.utils.data import DataLoader
+from model import SeqClassifier
 
 TRAIN = "train"
 DEV = "eval"
@@ -18,32 +24,106 @@ SPLITS = [TRAIN, DEV]
 def main(args):
     with open(args.cache_dir / "vocab.pkl", "rb") as f:
         vocab: Vocab = pickle.load(f)
-
     intent_idx_path = args.cache_dir / "intent2idx.json"
     intent2idx: Dict[str, int] = json.loads(intent_idx_path.read_text())
 
     data_paths = {split: args.data_dir / f"{split}.json" for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
     datasets: Dict[str, SeqClsDataset] = {
-        split: SeqClsDataset(split_data, vocab, intent2idx, args.max_len)
+        split: SeqClsDataset(split_data, vocab, intent2idx, args.max_len, type='train')
         for split, split_data in data.items()
     }
-    # TODO: crecate DataLoader for train / dev datasets
+    # (DONE) TODO: crecate DataLoader for train / dev datasets
+    # dataloader['text'] : data, dataloader['id'] : id
+    trainset_loader = DataLoader(datasets['train'], batch_size=args.batch_size, shuffle=True, collate_fn=datasets['train'].collate_fn)
+    evalset_loader = DataLoader(datasets['eval'], batch_size=args.batch_size, shuffle=False, collate_fn=datasets['eval'].collate_fn)
+    
+    # it = iter(trainset_loader)
+    # data = it.next()
+    # print(data['data'][0])
 
     embeddings = torch.load(args.cache_dir / "embeddings.pt")
-    # TODO: init model and move model to target device(cpu / gpu)
-    model = None
+    # embed = nn.Embedding.from_pretrained(embeddings, freeze=False)
+    # print(embed((data['data'])))
+    
 
-    # TODO: init optimizer
-    optimizer = None
+    # (DONE) TODO: init model and move model to target device(cpu / gpu)
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    print('Device used:', device)
 
-    epoch_pbar = trange(args.num_epoch, desc="Epoch")
-    for epoch in epoch_pbar:
-        # TODO: Training loop - iterate over train dataloader and update model weights
-        # TODO: Evaluation loop - calculate accuracy and save model weights
-        pass
+    model = SeqClassifier(embeddings=embeddings, input_size=300, hidden_size=args.hidden_size, num_layers=args.num_layers, dropout=args.dropout, bidirectional=args.bidirectional, num_class=args.num_class, seq_len=args.max_len)
+    model.to(device)
 
-    # TODO: Inference on test set
+    # (DONE) TODO: init optimizer
+    optimizer = optim.Adam(model.parameters(), args.lr)
+
+    # Loss function
+    criterion = nn.CrossEntropyLoss()
+
+    best_acc = 0.0
+
+    for epoch in range(1, args.num_epoch+1):
+        
+        model.train()
+        
+        train_loss = 0.0
+        train_acc = 0.0
+        
+        for data in tqdm(trainset_loader,desc='Train'):
+            optimizer.zero_grad()
+
+            input = data['data'].to(device)
+            label = data['label'].to(device)
+            
+            output = model(input)
+            loss = criterion(output,label)
+            loss.backward()
+            
+            optimizer.step()
+
+            acc = (output.argmax(dim=-1) == label).float().mean()
+
+            # Record Loss & Acc
+            train_loss += loss.item()
+            train_acc += acc
+        
+        train_loss = train_loss / len(trainset_loader)
+        train_acc = train_acc / len(trainset_loader)
+
+        print(f"[ Train | {epoch:03d}/{args.num_epoch:03d} ] loss = {train_loss:.5f}, acc = {train_acc:.5f}")
+
+        # Validation
+        model.eval()
+
+        valid_loss = 0.0
+        valid_acc = 0.0
+        
+        for data in tqdm(evalset_loader, desc='Eval'):
+            with torch.no_grad():
+
+                input = data['data'].to(device)
+                label = data['label'].to(device)
+                
+                output = model(input)
+                loss = criterion(output,label)
+
+                acc = (output.argmax(dim=-1) == label).float().mean()
+
+                valid_loss += loss.item()
+                valid_acc += acc
+        
+        valid_loss = valid_loss / len(evalset_loader)
+        valid_acc = valid_acc / len(evalset_loader)
+
+        print(f"[ Valid | {epoch:03d}/{args.num_epoch:03d} ] loss = {valid_loss:.5f}, acc = {valid_acc:.5f}")
+        
+        if valid_acc > best_acc:
+            best_acc = valid_acc
+            print('best acc: ',best_acc)
+            torch.save(model.state_dict(), os.path.join(args.ckpt_dir,f'lstm_epoch_{epoch}.ckpt'))
+            print('save model with acc:',best_acc)
+
+    # # # TODO: Inference on test set
 
 
 def parse_args() -> Namespace:
@@ -68,23 +148,24 @@ def parse_args() -> Namespace:
     )
 
     # data
-    parser.add_argument("--max_len", type=int, default=128)
+    parser.add_argument("--max_len", type=int, default=32)
 
     # model
     parser.add_argument("--hidden_size", type=int, default=512)
     parser.add_argument("--num_layers", type=int, default=2)
-    parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument("--dropout", type=float, default=0.2)
     parser.add_argument("--bidirectional", type=bool, default=True)
+    parser.add_argument("--num_class", type=int, default=150)
 
     # optimizer
     parser.add_argument("--lr", type=float, default=1e-3)
 
     # data loader
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=256)
 
     # training
     parser.add_argument(
-        "--device", type=torch.device, help="cpu, cuda, cuda:0, cuda:1", default="cpu"
+        "--device", type=torch.device, help="cpu, cuda, cuda:0, cuda:1", default="cuda:0"
     )
     parser.add_argument("--num_epoch", type=int, default=100)
 

@@ -76,7 +76,7 @@ python train_intent.py
     ```
 
 
-### improved
+### improved1
 - performance:
 ```
 Kaggle score:   0.9284
@@ -87,6 +87,24 @@ Kaggle score:   0.9284
     batch size: 256
     ```
 - model: (same as baseline)
+- optimizer: (same as baseline)
+
+### improved2
+- performance:
+```
+Kaggle score:   0.9368
+```
+- data:
+    ```
+    embedding max_len (seq_len): 32
+    batch size: 256
+    ```
+- model: 
+    ```
+    bidirection = False
+
+    other same as baseline
+    ```
 - optimizer: (same as baseline)
 
 

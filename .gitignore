@@ -1,1 +1,7 @@
 venv/
+*.txt
+*.csv
+*.zip
+__pycache__/
+cache/
+*.ckpt

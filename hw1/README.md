@@ -107,5 +107,17 @@ Kaggle score:   0.9368
     ```
 - optimizer: (same as baseline)
 
+### improved3
+- performance:
+```
+Kaggle score:   0.9395
+```
+- data: (same as baseline)
+- model: 
+    ```
+    fc: LeakyRelu->Relu
+    other same as baseline
+    ```
+- optimizer: (same as baseline)
 
 ## Slot tagging

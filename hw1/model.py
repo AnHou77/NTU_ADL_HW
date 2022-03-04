@@ -27,17 +27,13 @@ class SeqClassifier(torch.nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(self.feature_size,1024),
             nn.BatchNorm1d(1024),
-            nn.LeakyReLU(0.2),
+            # nn.LeakyReLU(0.2),
+            nn.ReLU(),
             nn.Linear(1024,num_class),
             nn.Sigmoid()
         )
 
-    @property
-    def encoder_output_size(self) -> int:
-        # TODO: calculate the output dimension of rnn
-        raise NotImplementedError
 
-    # def forward(self, batch) -> Dict[str, torch.Tensor]:
     #     # TODO: implement model forward
     def forward(self, input):
         embed = self.embed(input)

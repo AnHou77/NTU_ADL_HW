@@ -108,6 +108,6 @@ Kaggle score:   0.9377
     Adam,
     learning r
 
-- ![](https://github.com/AnHou77/NTU_ADL_HW/tree/master/hw1/acc.png)
+- ![image](https://github.com/AnHou77/NTU_ADL_HW/blob/master/hw1/acc.png)
 
 ## Slot tagging

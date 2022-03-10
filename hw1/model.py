@@ -17,7 +17,7 @@ class SeqClassifier(torch.nn.Module):
     ) -> None:
         super(SeqClassifier, self).__init__()
         self.embed = nn.Embedding.from_pretrained(embeddings, freeze=False)
-        # TODO: model architecture
+
         self.lstm = nn.LSTM(input_size=input_size,hidden_size=hidden_size,num_layers=num_layers,dropout=dropout,bidirectional=bidirectional,batch_first=True)
 
         self.feature_size = seq_len * hidden_size
@@ -27,10 +27,8 @@ class SeqClassifier(torch.nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(self.feature_size,1024),
             nn.BatchNorm1d(1024),
-            # nn.LeakyReLU(0.2),
             nn.ReLU(),
             nn.Linear(1024,num_class),
-            nn.Sigmoid()
         )
 
 

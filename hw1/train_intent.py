@@ -16,6 +16,8 @@ from utils import Vocab
 from torch.utils.data import DataLoader
 from model import SeqClassifier
 
+import matplotlib.pyplot as plt
+
 TRAIN = "train"
 DEV = "eval"
 SPLITS = [TRAIN, DEV]
@@ -43,9 +45,6 @@ def main(args):
     # print(data['data'][0])
 
     embeddings = torch.load(args.cache_dir / "embeddings.pt")
-    # embed = nn.Embedding.from_pretrained(embeddings, freeze=False)
-    # print(embed((data['data'])))
-    
 
     # (DONE) TODO: init model and move model to target device(cpu / gpu)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
@@ -61,6 +60,11 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
 
     best_acc = 0.0
+
+    train_losses = []
+    train_accs = []
+    valid_losses = []
+    valid_accs = []
 
     for epoch in range(1, args.num_epoch+1):
         
@@ -88,8 +92,9 @@ def main(args):
             train_acc += acc
         
         train_loss = train_loss / len(trainset_loader)
+        train_losses.append(train_loss)
         train_acc = train_acc / len(trainset_loader)
-
+        train_accs.append(train_acc.cpu())
         print(f"[ Train | {epoch:03d}/{args.num_epoch:03d} ] loss = {train_loss:.5f}, acc = {train_acc:.5f}")
 
         # Validation
@@ -113,7 +118,9 @@ def main(args):
                 valid_acc += acc
         
         valid_loss = valid_loss / len(evalset_loader)
+        valid_losses.append(valid_loss)
         valid_acc = valid_acc / len(evalset_loader)
+        valid_accs.append(valid_acc.cpu())
 
         print(f"[ Valid | {epoch:03d}/{args.num_epoch:03d} ] loss = {valid_loss:.5f}, acc = {valid_acc:.5f}")
         
@@ -123,7 +130,20 @@ def main(args):
             torch.save(model.state_dict(), os.path.join(args.ckpt_dir,f'lstm_epoch_{epoch}.ckpt'))
             print('save model with acc:',best_acc)
 
-    # # # TODO: Inference on test set
+    plt.subplot(211)
+    plt.plot(train_losses, 'r')
+    plt.plot(valid_losses, 'b')
+    plt.ylabel('Loss')
+    plt.title('Training/Valid Loss & Accuracy')
+    plt.legend(['train','valid'])
+
+    plt.subplot(212)
+    plt.plot(train_accs, 'r')
+    plt.plot(valid_accs, 'b')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend(['train','valid'])
+    plt.savefig('acc.png')
 
 
 def parse_args() -> Namespace:

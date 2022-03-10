@@ -75,49 +75,39 @@ python train_intent.py
     learning rate: 1e-3
     ```
 
-
-### improved1
+### improved (Final)
 - performance:
 ```
-Kaggle score:   0.9284
+Kaggle score:   0.9377
 ```
-- data:
-    ```
-    embedding max_len (seq_len): 32
-    batch size: 256
-    ```
-- model: (same as baseline)
-- optimizer: (same as baseline)
-
-### improved2
-- performance:
-```
-Kaggle score:   0.9368
-```
-- data:
+- data: 
     ```
     embedding max_len (seq_len): 32
     batch size: 256
     ```
 - model: 
     ```
-    bidirection = False
+    LSTM(
+        input_size=300,
+        hidden_size=512,
+        num_layers=2,
+        dropout=0.2,
+        bidirectional=False,
+        batch_first=True
+    )
+    
+    fc = nn.Sequential(
+        nn.Linear(seq_len*hidden_size,1024),
+        nn.BatchNorm1d(1024),
+        nn.ReLU(),
+        nn.Linear(1024,num_class),
+    )
+    ```
+- optimizer:
+    ```
+    Adam,
+    learning r
 
-    other same as baseline
-    ```
-- optimizer: (same as baseline)
-
-### improved3
-- performance:
-```
-Kaggle score:   0.9395
-```
-- data: (same as baseline)
-- model: 
-    ```
-    fc: LeakyRelu->Relu
-    other same as baseline
-    ```
-- optimizer: (same as baseline)
+- ![image](https://github.com/AnHou77/NTU_ADL_HW/tree/master/hw1/acc.png)
 
 ## Slot tagging

@@ -7,8 +7,8 @@ from typing import Dict
 
 import torch
 
-from dataset import SeqClsDataset
-from model import SeqClassifier
+from dataset import TagClsDataset
+from model import TagClassifier
 from utils import Vocab
 
 from torch.utils.data import DataLoader
@@ -18,12 +18,12 @@ from tqdm import tqdm
 def main(args):
     with open(args.cache_dir / "vocab.pkl", "rb") as f:
         vocab: Vocab = pickle.load(f)
-
-    intent_idx_path = args.cache_dir / "intent2idx.json"
-    intent2idx: Dict[str, int] = json.loads(intent_idx_path.read_text())
+    tag_idx_path = args.cache_dir / "tag2idx.json"
+    tag2idx: Dict[str, int] = json.loads(tag_idx_path.read_text())
+    num_class = len(tag2idx)
 
     data = json.loads(args.test_file.read_text())
-    dataset = SeqClsDataset(data, vocab, intent2idx, args.max_len, type='test')
+    dataset = TagClsDataset(data, vocab, tag2idx, args.max_len, type='test')
     
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, collate_fn=dataset.collate_fn)
 
@@ -32,7 +32,7 @@ def main(args):
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print('Device used:', device)
 
-    model = SeqClassifier(embeddings=embeddings, input_size=300, hidden_size=args.hidden_size, num_layers=args.num_layers, dropout=args.dropout, bidirectional=args.bidirectional, num_class=args.num_class, seq_len=args.max_len)
+    model = TagClassifier(embeddings=embeddings, input_size=300, hidden_size=args.hidden_size, num_layers=args.num_layers, dropout=args.dropout, bidirectional=args.bidirectional, num_class=num_class)
     
     model.load_state_dict(torch.load(args.ckpt_path))
     model.to(device)
@@ -40,19 +40,23 @@ def main(args):
     model.eval()
     
     id = []
-    intent = []
+    preds = []
     for data in tqdm(dataloader,desc='inference'):
         with torch.no_grad():
             input = data['data'].to(device)
-            output = model(input).argmax(dim=-1).cpu().numpy()[0]
-
+            output = model(input)
+            seq_len = data['seq_len'][0]
+            pred = output[0,:seq_len,:].argmax(-1)
+            sequence = ''
+            for p in pred:
+                sequence += dataset.idx2label(p.item())
+                sequence += ' '
+            sequence = sequence[:-1]
             id.append(data['id'][0])
-            intent.append(dataset.idx2label(output))
+            preds.append(sequence)
     
-    df = pd.DataFrame({'id': id, 'intent':intent})
+    df = pd.DataFrame({'id': id, 'tags':preds})
     df.to_csv(args.pred_file,index=False)
-    
-    # TODO: write prediction to file (args.pred_file)
 
 
 def parse_args() -> Namespace:
@@ -67,7 +71,7 @@ def parse_args() -> Namespace:
         "--cache_dir",
         type=Path,
         help="Directory to the preprocessed caches.",
-        default="./cache/intent/",
+        default="./cache/slot/",
     )
     parser.add_argument(
         "--ckpt_path",
@@ -75,13 +79,13 @@ def parse_args() -> Namespace:
         help="Path to model checkpoint.",
         required=True
     )
-    parser.add_argument("--pred_file", type=Path, default="pred.intent.csv")
+    parser.add_argument("--pred_file", type=Path, default="pred.slot.csv")
 
     # data
-    parser.add_argument("--max_len", type=int, default=32)
+    parser.add_argument("--max_len", type=int, default=36)
 
     # model
-    parser.add_argument("--hidden_size", type=int, default=512)
+    parser.add_argument("--hidden_size", type=int, default=1024)
     parser.add_argument("--num_layers", type=int, default=2)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--bidirectional", type=bool, default=True)

@@ -1,3 +1,4 @@
+from collections import Counter
 import os
 import json
 import pickle
@@ -10,11 +11,11 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from dataset import SeqClsDataset
+from dataset import TagClsDataset
 from utils import Vocab
 
 from torch.utils.data import DataLoader
-from model import SeqClassifier
+from model import TagClassifier
 
 # import matplotlib.pyplot as plt
 
@@ -26,38 +27,58 @@ SPLITS = [TRAIN, DEV]
 def main(args):
     with open(args.cache_dir / "vocab.pkl", "rb") as f:
         vocab: Vocab = pickle.load(f)
-    intent_idx_path = args.cache_dir / "intent2idx.json"
-    intent2idx: Dict[str, int] = json.loads(intent_idx_path.read_text())
+    tag_idx_path = args.cache_dir / "tag2idx.json"
+    tag2idx: Dict[str, int] = json.loads(tag_idx_path.read_text())
+    num_class = len(tag2idx)
+    print(tag2idx)
 
     data_paths = {split: args.data_dir / f"{split}.json" for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
-    datasets: Dict[str, SeqClsDataset] = {
-        split: SeqClsDataset(split_data, vocab, intent2idx, args.max_len, type='train')
+    datasets: Dict[str, TagClsDataset] = {
+        split: TagClsDataset(split_data, vocab, tag2idx, args.max_len, type='train')
         for split, split_data in data.items()
     }
+
+    # i = 0
+    # for d in data['train']:
+    #     if i == 0:
+    #         counter = Counter(d['tags'])
+    #     else:
+    #         counter += Counter(d['tags'])
+    #     i += 1
+    # print(counter)
+    # it = counter.keys()
+    # sum = 0
+    # class_weight = []
+    # for i in it:
+    #     class_weight.append(counter[i])
+    #     sum += counter[i]
+    # print(class_weight)
+
     # (DONE) TODO: crecate DataLoader for train / dev datasets
-    # dataloader['text'] : data, dataloader['id'] : id
     trainset_loader = DataLoader(datasets['train'], batch_size=args.batch_size, shuffle=True, collate_fn=datasets['train'].collate_fn)
     evalset_loader = DataLoader(datasets['eval'], batch_size=args.batch_size, shuffle=False, collate_fn=datasets['eval'].collate_fn)
     
     # it = iter(trainset_loader)
     # data = it.next()
     # print(data['data'][0])
-
+    # print(data['label'][0])
+    # print(data['id'][0])
+    
     embeddings = torch.load(args.cache_dir / "embeddings.pt")
 
     # (DONE) TODO: init model and move model to target device(cpu / gpu)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print('Device used:', device)
 
-    model = SeqClassifier(embeddings=embeddings, input_size=300, hidden_size=args.hidden_size, num_layers=args.num_layers, dropout=args.dropout, bidirectional=args.bidirectional, num_class=args.num_class, seq_len=args.max_len)
+    model = TagClassifier(embeddings=embeddings, input_size=300, hidden_size=args.hidden_size, num_layers=args.num_layers, dropout=args.dropout, bidirectional=args.bidirectional, num_class=num_class)
     model.to(device)
 
     # (DONE) TODO: init optimizer
     optimizer = optim.Adam(model.parameters(), args.lr)
 
     # Loss function
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=torch.tensor([1.0,10.0,10.0,10.0,10.0,10.0,10.0,10.0,10.0]).to(device),label_smoothing=0.1)
 
     best_acc = 0.0
 
@@ -80,21 +101,31 @@ def main(args):
             label = data['label'].to(device)
             
             output = model(input)
-            loss = criterion(output,label)
+            loss = criterion(output.permute(0,2,1),label)
             loss.backward()
             
             optimizer.step()
 
-            acc = (output.argmax(dim=-1) == label).float().mean()
+            acc = 0
+            for i in range(len(output)):
+                cnt = 0
+                seq_len = data['seq_len'][i]
+                pred = output[i,:seq_len,:].argmax(-1)
+                gt = label[i][:seq_len]
+                for s in range(seq_len):
+                    if (pred[s] == gt[s]):
+                        cnt += 1
+                if cnt == seq_len:
+                    acc += 1
 
             # Record Loss & Acc
             train_loss += loss.item()
-            train_acc += acc
+            train_acc += (acc/len(output))
         
         train_loss = train_loss / len(trainset_loader)
         train_losses.append(train_loss)
         train_acc = train_acc / len(trainset_loader)
-        train_accs.append(train_acc.cpu())
+        train_accs.append(train_acc)
         print(f"[ Train | {epoch:03d}/{args.num_epoch:03d} ] loss = {train_loss:.5f}, acc = {train_acc:.5f}")
 
         # Validation
@@ -110,17 +141,27 @@ def main(args):
                 label = data['label'].to(device)
                 
                 output = model(input)
-                loss = criterion(output,label)
+                loss = criterion(output.permute(0,2,1),label)
 
-                acc = (output.argmax(dim=-1) == label).float().mean()
+                acc = 0
+                for i in range(len(output)):
+                    cnt = 0
+                    seq_len = data['seq_len'][i]
+                    pred = output[i,:seq_len,:].argmax(-1)
+                    gt = label[i][:seq_len]
+                    for s in range(seq_len):
+                        if (pred[s] == gt[s]):
+                            cnt += 1
+                    if cnt == seq_len:
+                        acc += 1
 
                 valid_loss += loss.item()
-                valid_acc += acc
+                valid_acc += (acc/len(output))
         
         valid_loss = valid_loss / len(evalset_loader)
         valid_losses.append(valid_loss)
         valid_acc = valid_acc / len(evalset_loader)
-        valid_accs.append(valid_acc.cpu())
+        valid_accs.append(valid_acc)
 
         print(f"[ Valid | {epoch:03d}/{args.num_epoch:03d} ] loss = {valid_loss:.5f}, acc = {valid_acc:.5f}")
         
@@ -144,7 +185,7 @@ def main(args):
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.legend(['train','valid'])
-    plt.savefig('acc.png')
+    plt.savefig('acc_slot.png')
     """
 
 def parse_args() -> Namespace:
@@ -153,19 +194,19 @@ def parse_args() -> Namespace:
         "--data_dir",
         type=Path,
         help="Directory to the dataset.",
-        default="./data/intent/",
+        default="./data/slot/",
     )
     parser.add_argument(
         "--cache_dir",
         type=Path,
         help="Directory to the preprocessed caches.",
-        default="./cache/intent/",
+        default="./cache/slot/",
     )
     parser.add_argument(
         "--ckpt_dir",
         type=Path,
         help="Directory to save the model file.",
-        default="./ckpt/intent/",
+        default="./ckpt/slot/",
     )
 
     # data
@@ -176,7 +217,6 @@ def parse_args() -> Namespace:
     parser.add_argument("--num_layers", type=int, default=2)
     parser.add_argument("--dropout", type=float, default=0.2)
     parser.add_argument("--bidirectional", type=bool, default=True)
-    parser.add_argument("--num_class", type=int, default=150)
 
     # optimizer
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -188,7 +228,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--device", type=torch.device, help="cpu, cuda, cuda:0, cuda:1", default="cuda:0"
     )
-    parser.add_argument("--num_epoch", type=int, default=100)
+    parser.add_argument("--num_epoch", type=int, default=10)
 
     args = parser.parse_args()
     return args

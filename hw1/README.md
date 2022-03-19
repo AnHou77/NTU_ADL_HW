@@ -13,32 +13,11 @@ bash preprocess.sh
 
 ## Intent detection
 ```shell
-## Hyper parameters in training process ##
-# data
-parser.add_argument("--max_len", type=int, default=32)
-
-# model
-parser.add_argument("--hidden_size", type=int, default=512)
-parser.add_argument("--num_layers", type=int, default=2)
-parser.add_argument("--dropout", type=float, default=0.2)
-parser.add_argument("--bidirectional", type=bool, default=True)
-parser.add_argument("--num_class", type=int, default=150)
-
-# optimizer
-parser.add_argument("--lr", type=float, default=1e-3)
-
-# data loader
-parser.add_argument("--batch_size", type=int, default=256)
-
-# training
-parser.add_argument(
-    "--device", type=torch.device, help="cpu, cuda, cuda:0, cuda:1", default="cuda:0"
-)
-parser.add_argument("--num_epoch", type=int, default=100)
-##########################################
-
 # training script
 python train_intent.py
+
+# inference script
+bash intent_cls.sh {test_file} {pred_csv}
 ```
 ### baseline
 - performance:
@@ -92,7 +71,7 @@ Kaggle score:   0.9377
         hidden_size=512,
         num_layers=2,
         dropout=0.2,
-        bidirectional=False,
+        bidirectional=True,
         batch_first=True
     )
     
@@ -106,8 +85,83 @@ Kaggle score:   0.9377
 - optimizer:
     ```
     Adam,
-    learning r
+    learning rate: 1e-3
 
 - ![image](https://github.com/AnHou77/NTU_ADL_HW/tree/master/hw1/acc.png)
 
 ## Slot tagging
+```shell
+# training script
+python train_slot.py
+
+# inference script
+bash slot_tag.sh {test_file} {pred_csv}
+```
+### baseline
+- performance:
+    ```
+    Kaggle score:   0.7142
+    ```
+- data:
+    ```
+    embedding max_len (seq_len): 36
+    batch size: 256
+    ```
+- model:
+    ```
+    LSTM(
+        input_size=300,
+        hidden_size=1024,
+        num_layers=2,
+        dropout=0.2,
+        bidirectional=True,
+        batch_first=True
+    )
+    
+    fc = nn.Linear(hidden_size * 2,num_class)
+    ```
+- optimizer:
+    ```
+    Adam,
+    learning rate: 1e-3
+    ```
+- loss:
+    ```
+    CrossEntropyLoss,
+    label smooth = 0.1
+    ```
+### improved (Final)
+- performance:
+    ```
+    Kaggle score:   0.7705
+    ```
+- data:
+    ```
+    embedding max_len (seq_len): 36
+    batch size: 256
+    ```
+- model:
+    ```
+    LSTM(
+        input_size=300,
+        hidden_size=1024,
+        num_layers=2,
+        dropout=0.2,
+        bidirectional=True,
+        batch_first=True
+    )
+    
+    fc = nn.Linear(hidden_size * 2,num_class)
+    ```
+- optimizer:
+    ```
+    Adam,
+    learning rate: 1e-3
+    ```
+- loss:
+    ```
+    CrossEntropyLoss,
+    label smooth: 0.1,
+    weight balance (for each class in tag2idx): [1.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+    ```
+- ![image](https://github.com/AnHou77/NTU_ADL_HW/tree/master/hw1/acc_slot.png)

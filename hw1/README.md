@@ -164,4 +164,4 @@ bash slot_tag.sh {test_file} {pred_csv}
     label smooth: 0.1,
     weight balance (for each class in tag2idx): [1.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
     ```
-- ![image](https://github.com/AnHou77/NTU_ADL_HW/tree/master/hw1/acc_slot.png)
+- ![image](https://github.com/AnHou77/NTU_ADL_HW/blob/master/hw1/acc_slot.png)

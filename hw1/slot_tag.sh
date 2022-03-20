@@ -1,1 +1,1 @@
-python test_slot.py --test_file "${1}" --ckpt_path ckpt/slot/best.ckpt --pred_file "${2}"
+python test_slot.py --test_file "${1}" --ckpt_path slot_best.ckpt --pred_file "${2}"

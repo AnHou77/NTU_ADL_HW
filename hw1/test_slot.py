@@ -1,5 +1,4 @@
 import json
-from operator import index
 import pickle
 from argparse import ArgumentParser, Namespace
 from pathlib import Path

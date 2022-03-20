@@ -88,11 +88,11 @@ def parse_args() -> Namespace:
     parser.add_argument("--num_layers", type=int, default=2)
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--bidirectional", type=bool, default=True)
-    parser.add_argument("--num_class", type=int, default=150)
 
     # data loader
     parser.add_argument("--batch_size", type=int, default=1)
 
+    # Testing
     parser.add_argument(
         "--device", type=torch.device, help="cpu, cuda, cuda:0, cuda:1", default="cuda:0"
     )

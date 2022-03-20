@@ -16,7 +16,6 @@ from utils import Vocab
 
 from torch.utils.data import DataLoader
 from model import TagClassifier
-
 # import matplotlib.pyplot as plt
 
 TRAIN = "train"
@@ -210,12 +209,12 @@ def parse_args() -> Namespace:
     )
 
     # data
-    parser.add_argument("--max_len", type=int, default=32)
+    parser.add_argument("--max_len", type=int, default=36)
 
     # model
-    parser.add_argument("--hidden_size", type=int, default=512)
+    parser.add_argument("--hidden_size", type=int, default=1024)
     parser.add_argument("--num_layers", type=int, default=2)
-    parser.add_argument("--dropout", type=float, default=0.2)
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--bidirectional", type=bool, default=True)
 
     # optimizer
@@ -228,7 +227,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--device", type=torch.device, help="cpu, cuda, cuda:0, cuda:1", default="cuda:0"
     )
-    parser.add_argument("--num_epoch", type=int, default=10)
+    parser.add_argument("--num_epoch", type=int, default=50)
 
     args = parser.parse_args()
     return args

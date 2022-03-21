@@ -6,10 +6,7 @@ from utils import Vocab
 
 import torch
 
-import nltk
-nltk.download('punkt')
 from nltk.tokenize import word_tokenize
-
 
 class SeqClsDataset(Dataset):
     def __init__(

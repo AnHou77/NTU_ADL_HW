@@ -131,7 +131,7 @@ Kaggle score:   0.9377
     )
     
     fc = nn.Sequential(
-        nn.Linear(seq_len*hidden_size,1024),
+        nn.Linear(seq_len*hidden_size*2,1024),
         nn.BatchNorm1d(1024),
         nn.ReLU(),
         nn.Linear(1024,num_class),
@@ -142,7 +142,7 @@ Kaggle score:   0.9377
     Adam,
     learning rate: 1e-3
 
-- ![image](https://github.com/AnHou77/NTU_ADL_HW/blob/master/hw1/acc.png)
+- ![image](./acc.png)
 
 ### Plot figures
 - Uncommand (line 19), (line 133-148) in train_intent.py & pip install matplotlib
@@ -271,7 +271,7 @@ parser.add_argument("--device", type=torch.device, default="cuda:0")
     label smooth: 0.1,
     weight balance (for each class in tag2idx): [1.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
     ```
-- ![image](https://github.com/AnHou77/NTU_ADL_HW/blob/master/hw1/acc_slot.png)
+- ![image](./acc_slot.png)
 
 ### Plot figures
 - Uncommand (line 19), (line 174-189) in train_slot.py & pip install matplotlib

@@ -1,3 +1,5 @@
+python download.py
+
 mkdir -p 'cache/intent'
 mkdir -p 'cache/slot'
 

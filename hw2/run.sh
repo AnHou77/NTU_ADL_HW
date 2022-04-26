@@ -1,0 +1,5 @@
+python preprocess_context.py "${1}" "${2}"
+python cs_inference.py "mc_model/" "${2}"
+python preprocess_qa.py "${1}" "${2}"
+python run_qa.py --model_name_or_path "qa_model/" --test_file "test.json" --do_predict --max_seq_length 512 --doc_stride 128 --output_dir "output/"
+python qa_inference.py "${3}"

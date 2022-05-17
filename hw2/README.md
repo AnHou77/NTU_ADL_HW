@@ -20,7 +20,7 @@ pandas
 # download model
 bash download.sh
 
-# inference with Multiple Choice & Question Answering model
+# inference with Multiple Choice & Question Answering model 
 # "${1}": path to the context file.
 # "${2}": path to the testing file.
 # "${3}": path to the output predictions.
